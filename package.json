@@ -1,0 +1,84 @@
+{
+  "name": "source-code-context",
+  "displayName": "Source Code Context",
+  "description": "Generates a comprehensive source code context for analysis",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "source-code-context.generate",
+        "title": "Generate Source Code Context"
+      }
+    ],
+    "configuration": {
+      "title": "Source Code Context",
+      "properties": {
+        "sourceCodeContext.outputFile": {
+          "type": "string",
+          "default": "source-code-context.txt",
+          "description": "Output file for the generated source code context"
+        },
+        "sourceCodeContext.excludeDirs": {
+          "type": "array",
+          "default": [
+            "node_modules",
+            ".git",
+            "dist",
+            "build"
+          ],
+          "description": "Directories to exclude from the source code context"
+        },
+        "sourceCodeContext.excludeFiles": {
+          "type": "array",
+          "default": [
+            "*.min.js",
+            "package-lock.json"
+          ],
+          "description": "Files to exclude from the source code context (glob patterns)"
+        },
+        "sourceCodeContext.includeExtensions": {
+          "type": "array",
+          "default": [
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".html",
+            ".css",
+            ".json",
+            ".md"
+          ],
+          "description": "File extensions to include in the source code context"
+        },
+        "sourceCodeContext.maxFileSize": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum file size in KB to include in the source code context"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/minimatch": "^5.1.2",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.60.0",
+    "eslint": "^8.0.0",
+    "glob": "^10.0.0"
+  },
+  "dependencies": {
+    "minimatch": "^5.1.0"
+  }
+}
