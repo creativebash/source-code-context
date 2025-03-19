@@ -4,6 +4,7 @@
   "description": "Generates a comprehensive source code context for analysis",
   "version": "0.1.1",
   "publisher": "creativebash",
+  "icon": "images/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/creativebash/source-code-context"

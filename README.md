@@ -21,7 +21,7 @@ A Visual Studio Code extension that generates a comprehensive context file of yo
 
 This extension contributes the following settings:
 
-- `sourceCodeContext.outputFile`: Name of the output file (default: "project_context.txt")
+- `sourceCodeContext.outputFile`: Name of the output file (default: "source_code_context.txt")
 - `sourceCodeContext.excludeDirs`: Directories to exclude (default includes `node_modules`, `venv`, `vendor`, `target`, `dist`, `.git`, etc.)
 - `sourceCodeContext.excludeFiles`: Files to exclude, supports wildcards (default includes `package-lock.json`, `*.log`, `*.png`, etc.)
 - `sourceCodeContext.includeExtensions`: File extensions to include (default: [".js", ".ts", ".py", ".java", ".cpp", ".c", ".cs", ".go", ".rb", ".php"])
