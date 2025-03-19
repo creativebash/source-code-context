@@ -2,7 +2,7 @@
   "name": "source-code-context",
   "displayName": "Source Code Context",
   "description": "Generates a comprehensive source code context for analysis",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "creativebash",
   "icon": "icon.png",
   "repository": {
