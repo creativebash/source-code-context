@@ -1,1 +1,4 @@
 node_modules/
+generateCtx.js
+project_context.txt
+source_code_context.txt

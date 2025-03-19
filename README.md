@@ -13,8 +13,8 @@ A Visual Studio Code extension that generates a comprehensive context file of yo
 ## Usage
 
 1. Open the Command Palette (Ctrl+Shift+P)
-2. Type and select "Generate Source Code Context for AI"
-3. The extension will create a file (default: `project_context.txt`) in your workspace root
+2. Type and select "Generate Source Code Context"
+3. The extension will create a file (default: `source_code_context.txt`) in your workspace root
 4. The file will be automatically opened once generated
 
 ## Extension Settings

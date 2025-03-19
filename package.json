@@ -2,14 +2,25 @@
   "name": "source-code-context",
   "displayName": "Source Code Context",
   "description": "Generates a comprehensive source code context for analysis",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "publisher": "creativebash",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/creativebash/source-code-context"
+  },
+  "galleryBanner": {
+    "color": "#C80000",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.60.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
@@ -17,6 +28,13 @@
         "command": "source-code-context.generate",
         "title": "Generate Source Code Context"
       }
+    ],
+    "files": [
+      "extension.js",
+      "package.json",
+      "README.md",
+      "LICENCE.txt",
+      "node_modules/minimatch/**"
     ],
     "configuration": {
       "title": "Source Code Context",

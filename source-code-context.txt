@@ -1,0 +1,446 @@
+Project File Tree:
+├── .vscode
+│   └── launch.json
+├── extension.js
+├── generateCtx.js
+├── package.json
+├── README.md
+└── vsc-extension-quickstart.md
+
+File Contents:
+
+==== .vscode\launch.json (Size: 275 bytes) ====
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "outFiles": ["${workspaceFolder}/**/*.js"]
+    }
+  ]
+}
+
+
+==== extension.js (Size: 6098 bytes) ====
+const vscode = require("vscode");
+const fs = require("fs").promises;
+const path = require("path");
+const minimatch = require("minimatch");
+
+/**
+ * @param {vscode.ExtensionContext} context
+ */
+function activate(context) {
+  let disposable = vscode.commands.registerCommand(
+    "source-code-context.generate",
+    async function () {
+      try {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders) {
+          vscode.window.showErrorMessage("No workspace folder open");
+          return;
+        }
+
+        const rootPath = workspaceFolders[0].uri.fsPath;
+        const config = vscode.workspace.getConfiguration("sourceCodeContext");
+        const outputFile = config.get("outputFile");
+        const excludeDirs = config.get("excludeDirs");
+        const excludeFiles = config.get("excludeFiles");
+        const includeExtensions = config.get("includeExtensions");
+        const maxFileSizeKB = config.get("maxFileSize") * 1024; // Convert to bytes
+
+        const exclusions = {
+          dirs: excludeDirs,
+          files: excludeFiles,
+        };
+
+        // Show progress notification
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "Generating Source Code Context",
+            cancellable: true,
+          },
+          async (progress, token) => {
+            token.onCancellationRequested(() => {
+              throw new Error("Generation cancelled by user");
+            });
+            progress.report({ increment: 0 });
+
+            const outputPath = path.join(rootPath, outputFile);
+            await generateProjectContext(
+              rootPath,
+              outputPath,
+              exclusions,
+              includeExtensions,
+              maxFileSizeKB
+            );
+
+            progress.report({ increment: 100 });
+          }
+        );
+
+        vscode.window.showInformationMessage(
+          `Source code context generated to ${outputFile}`
+        );
+
+        const document = await vscode.workspace.openTextDocument(
+          path.join(rootPath, outputFile)
+        );
+        await vscode.window.showTextDocument(document);
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Error generating source code context: ${error.message}`
+        );
+      }
+    }
+  );
+
+  context.subscriptions.push(disposable);
+}
+
+async function generateProjectContext(
+  dir,
+  outputFile,
+  exclusions = { dirs: [], files: [] },
+  includeExtensions = [],
+  maxFileSize = 0
+) {
+  let output = "Project File Tree:\n";
+
+  async function buildTree(currentDir, prefix = "") {
+    const files = await fs.readdir(currentDir, { withFileTypes: true });
+    const filteredFiles = files.filter(
+      (file) =>
+        !isExcluded(path.join(currentDir, file.name), dir, exclusions) &&
+        (file.isDirectory() || shouldIncludeFile(file.name, includeExtensions))
+    );
+
+    for (let i = 0; i < filteredFiles.length; i++) {
+      const file = filteredFiles[i];
+      const fullPath = path.join(currentDir, file.name);
+      const isLast = i === filteredFiles.length - 1;
+      output += `${prefix}${isLast ? "└──" : "├──"} ${file.name}\n`;
+      if (file.isDirectory()) {
+        await buildTree(fullPath, prefix + (isLast ? "    " : "│   "));
+      }
+    }
+  }
+
+  await buildTree(dir);
+  output += "\nFile Contents:\n";
+
+  async function appendContents(currentDir) {
+    const files = await fs.readdir(currentDir, { withFileTypes: true });
+    const filteredFiles = files.filter(
+      (file) =>
+        !isExcluded(path.join(currentDir, file.name), dir, exclusions) &&
+        (file.isDirectory() || shouldIncludeFile(file.name, includeExtensions))
+    );
+
+    for (const file of filteredFiles) {
+      const fullPath = path.join(currentDir, file.name);
+      if (file.isDirectory()) {
+        await appendContents(fullPath);
+      } else {
+        const stats = await fs.stat(fullPath);
+        if (maxFileSize > 0 && stats.size > maxFileSize) {
+          output += `\n==== ${path.relative(
+            dir,
+            fullPath
+          )} ====\n[File exceeds size limit: ${stats.size} bytes]\n`;
+        } else if (await isTextFile(fullPath)) {
+          const content = await fs.readFile(fullPath, "utf-8");
+          output += `\n==== ${path.relative(dir, fullPath)} (Size: ${
+            stats.size
+          } bytes) ====\n${content}\n`;
+        } else {
+          output += `\n==== ${path.relative(
+            dir,
+            fullPath
+          )} ====\n[Binary file omitted]\n`;
+        }
+      }
+    }
+  }
+
+  await appendContents(dir);
+  await fs.writeFile(outputFile, output);
+}
+
+function isExcluded(filePath, rootDir, exclusions) {
+  const relativePath = path.relative(rootDir, filePath);
+  return (
+    exclusions.dirs.some((dir) => relativePath.startsWith(dir)) ||
+    exclusions.files.some((pattern) => minimatch(relativePath, pattern))
+  );
+}
+
+function shouldIncludeFile(fileName, includeExtensions) {
+  return (
+    includeExtensions.length === 0 ||
+    includeExtensions.some((ext) => fileName.endsWith(ext))
+  );
+}
+
+async function isTextFile(filePath) {
+  const binaryExtensions = [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".mp4",
+    ".mp3",
+    ".avi",
+    ".gif",
+    ".bmp",
+    ".ico",
+    ".pdf",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".exe",
+    ".dll",
+    ".bin",
+    ".o",
+    ".so",
+  ];
+  if (binaryExtensions.some((ext) => filePath.endsWith(ext))) return false;
+
+  const buffer = await fs.readFile(filePath, { encoding: null });
+  // Fix for the deprecated Buffer.slice method
+  const sampleBuffer = new Uint8Array(buffer.buffer, buffer.byteOffset, Math.min(512, buffer.length));
+  const sample = new TextDecoder().decode(sampleBuffer);
+  return !/[\x00-\x08\x0E-\x1F]/.test(sample); // Check for control characters
+}
+
+function deactivate() {}
+
+module.exports = {
+  activate,
+  deactivate,
+};
+
+==== generateCtx.js (Size: 2441 bytes) ====
+const fs = require("fs").promises;
+const path = require("path");
+
+async function generateProjectContext(
+  dir,
+  outputFile,
+  exclusions = { dirs: [], files: [] }
+) {
+  let output = "Project File Tree:\n";
+
+  // Generate tree structure, excluding specified directories and files
+  async function buildTree(currentDir, prefix = "") {
+    const files = await fs.readdir(currentDir, { withFileTypes: true });
+    const filteredFiles = files.filter(
+      (file) =>
+        !(file.isDirectory() && exclusions.dirs.includes(file.name)) &&
+        !(file.isFile() && exclusions.files.includes(file.name))
+    );
+
+    for (let i = 0; i < filteredFiles.length; i++) {
+      const file = filteredFiles[i];
+      const fullPath = path.join(currentDir, file.name);
+      const isLast = i === filteredFiles.length - 1;
+      output += `${prefix}${isLast ? "└──" : "├──"} ${file.name}\n`;
+      if (file.isDirectory()) {
+        await buildTree(fullPath, prefix + (isLast ? "    " : "│   "));
+      }
+    }
+  }
+
+  await buildTree(dir);
+  output += "\nFile Contents:\n";
+
+  // Append file contents, excluding specified directories and files
+  async function appendContents(currentDir) {
+    const files = await fs.readdir(currentDir, { withFileTypes: true });
+    const filteredFiles = files.filter(
+      (file) =>
+        !(file.isDirectory() && exclusions.dirs.includes(file.name)) &&
+        !(file.isFile() && exclusions.files.includes(file.name))
+    );
+
+    for (const file of filteredFiles) {
+      const fullPath = path.join(currentDir, file.name);
+      if (file.isDirectory()) {
+        await appendContents(fullPath);
+      } else {
+        const content = await fs.readFile(fullPath, "utf-8");
+        output += `\n==== ${path.relative(dir, fullPath)} ====\n${content}\n`;
+      }
+    }
+  }
+
+  await appendContents(dir);
+  await fs.writeFile(outputFile, output);
+}
+
+// Define exclusions as a single object
+const projectExclusions = {
+  dirs: ["node_modules", "dist", ".git"],
+  files: [
+    "package-lock.json",
+    ".gitignore",
+    "project_context.txt",
+    "generateCtx.js",
+    "source_code_context.txt",
+    "source_code_context-0.1.0.vsix",
+  ],
+};
+
+// Example usage: pass the exclusions object
+generateProjectContext("./", "source_code_context.txt", projectExclusions)
+  .then(() => console.log("Done!"))
+  .catch((err) => console.error(err));
+
+
+==== package.json (Size: 2590 bytes) ====
+{
+  "name": "source-code-context",
+  "displayName": "Source Code Context",
+  "description": "Generates a comprehensive source code context for analysis",
+  "version": "0.1.0",
+  "publisher": "creativebash",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/creativebash/source-code-context"
+  },
+  "galleryBanner": {
+    "color": "#C80000",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "source-code-context.generate",
+        "title": "Generate Source Code Context"
+      }
+    ],
+    "files": [
+      "extension.js",
+      "package.json",
+      "README.md",
+      "LICENCE.txt",
+      "node_modules/minimatch/**"
+    ],
+    "configuration": {
+      "title": "Source Code Context",
+      "properties": {
+        "sourceCodeContext.outputFile": {
+          "type": "string",
+          "default": "source-code-context.txt",
+          "description": "Output file for the generated source code context"
+        },
+        "sourceCodeContext.excludeDirs": {
+          "type": "array",
+          "default": [
+            "node_modules",
+            ".git",
+            "dist",
+            "build"
+          ],
+          "description": "Directories to exclude from the source code context"
+        },
+        "sourceCodeContext.excludeFiles": {
+          "type": "array",
+          "default": [
+            "*.min.js",
+            "package-lock.json"
+          ],
+          "description": "Files to exclude from the source code context (glob patterns)"
+        },
+        "sourceCodeContext.includeExtensions": {
+          "type": "array",
+          "default": [
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".html",
+            ".css",
+            ".json",
+            ".md"
+          ],
+          "description": "File extensions to include in the source code context"
+        },
+        "sourceCodeContext.maxFileSize": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum file size in KB to include in the source code context"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/minimatch": "^5.1.2",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.60.0",
+    "eslint": "^8.0.0",
+    "glob": "^10.0.0"
+  },
+  "dependencies": {
+    "minimatch": "^5.1.0"
+  }
+}
+
+
+==== README.md (Size: 1683 bytes) ====
+# Source Code Context
+
+A Visual Studio Code extension that generates a comprehensive context file of your project's source code for AI tools.
+
+## Features
+
+- Creates a single file containing your project structure and file contents
+- Configurable exclusions for directories, files, and wildcards
+- Filters out binary files and respects file size limits
+- Optional extension-based filtering for relevant code files
+- Easily shareable output for AI tools
+
+## Usage
+
+1. Open the Command Palette (Ctrl+Shift+P)
+2. Type and select "Generate Source Code Context for AI"
+3. The extension will create a file (default: `project_context.txt`) in your workspace root
+4. The file will be automatically opened once generated
+
+## Extension Settings
+
+This extension contributes the following settings:
+
+- `sourceCodeContext.outputFile`: Name of the output file (default: "project_context.txt")
+- `sourceCodeContext.excludeDirs`: Directories to exclude (default includes `node_modules`, `venv`, `vendor`, `target`, `dist`, `.git`, etc.)
+- `sourceCodeContext.excludeFiles`: Files to exclude, supports wildcards (default includes `package-lock.json`, `*.log`, `*.png`, etc.)
+- `sourceCodeContext.includeExtensions`: File extensions to include (default: [".js", ".ts", ".py", ".java", ".cpp", ".c", ".cs", ".go", ".rb", ".php"])
+- `sourceCodeContext.maxFileSize`: Maximum file size in KB to include (default: 1024, set to 0 for no limit)
+
+## Notes
+
+- Binary files (e.g., `.png`, `.pdf`, `.exe`) are automatically omitted.
+- Use wildcards (e.g., `*.log`) in `excludeFiles` to exclude patterns.
+- Cancel the generation process via the notification if it takes too long.
+
+
+==== vsc-extension-quickstart.md (Size: 0 bytes) ====
+

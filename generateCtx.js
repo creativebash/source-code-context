@@ -57,16 +57,18 @@ async function generateProjectContext(
 
 // Define exclusions as a single object
 const projectExclusions = {
-  dirs: ["node_modules", "dist"],
+  dirs: ["node_modules", "dist", ".git"],
   files: [
     "package-lock.json",
     ".gitignore",
     "project_context.txt",
     "generateCtx.js",
+    "source_code_context.txt",
+    "source_code_context-0.1.0.vsix",
   ],
 };
 
 // Example usage: pass the exclusions object
-generateProjectContext("./", "project_context.txt", projectExclusions)
+generateProjectContext("./", "source_code_context.txt", projectExclusions)
   .then(() => console.log("Done!"))
   .catch((err) => console.error(err));
